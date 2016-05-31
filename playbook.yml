@@ -1,0 +1,10 @@
+---
+- hosts: default
+  sudo: yes
+  tasks:
+  - name: Add deadsnakes PPA
+    apt_repository: repo='ppa:fkrull/deadsnakes' state=present
+  - name: Update APT cache
+    apt: update_cache=yes
+  - name: Install Python 3.5
+    apt: name=python3.5 state=present
