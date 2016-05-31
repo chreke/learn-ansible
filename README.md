@@ -46,7 +46,8 @@ This is what we have so far:
 ```yaml
 ---
 - hosts: default
-  sudo: yes
+  become: yes
+  become_user: root
   tasks:
   - name: Add deadsnakes PPA
     apt_repository: repo='ppa:fkrull/deadsnakes' state=present
