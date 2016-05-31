@@ -56,3 +56,30 @@ This is what we have so far:
   - name: Ensure Python 3.5 is installed
     apt: name=python3.5 state=present
 ```
+
+Set up port forwarding and synced folders
+-----------------------------------------
+
+Add these lines to the `Vagrantfile`:
+
+```ruby
+config.vm.network "forwarded_port", guest: 80, host: 4000
+
+config.vm.synced_folder "src/", "/home/vagrant/src"
+```
+
+Install Django
+--------------
+
+Add a `requirements.txt` with the line `Django==1.9`, then add the
+following;
+
+```yaml
+- name: Install virtualenv
+  apt: name=python-virtualenv state=present
+- name: Install Python dependencies
+  pip:
+    requirements: '{{ app_dir }}/requirements.txt'
+    virtualenv_python: /usr/bin/python3.5
+    virtualenv: '{{ app_dir }}/venv'
+```
