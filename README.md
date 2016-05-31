@@ -21,7 +21,7 @@ Ansible should do the following things:
 Setup
 -----
 
-Install Ansible and Vagrant
+Install Ansible (>2.0) and Vagrant
 
 Ansible + Vagrant
 -----------------
