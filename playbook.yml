@@ -1,6 +1,8 @@
 ---
 - hosts: default
   sudo: yes
+  vars:
+    app_dir: '/home/vagrant/src'
   tasks:
   - name: Add deadsnakes PPA
     apt_repository: repo='ppa:fkrull/deadsnakes' state=present
@@ -8,3 +10,10 @@
     apt: update_cache=yes
   - name: Install Python 3.5
     apt: name=python3.5 state=present
+  - name: Install virtualenv
+    apt: name=python-virtualenv state=present
+  - name: Install Python dependencies
+    pip:
+      requirements: '{{ app_dir }}/requirements.txt'
+      virtualenv_python: /usr/bin/python3.5
+      virtualenv: '{{ app_dir }}/venv'
