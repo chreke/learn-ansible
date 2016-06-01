@@ -63,7 +63,7 @@ Set up port forwarding and synced folders
 Add these lines to the `Vagrantfile`:
 
 ```ruby
-config.vm.network "forwarded_port", guest: 80, host: 4000
+config.vm.network "forwarded_port", guest: 8080, host: 4000
 
 config.vm.synced_folder "src/", "/home/vagrant/src"
 ```
