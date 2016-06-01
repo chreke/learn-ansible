@@ -83,3 +83,60 @@ following;
     virtualenv_python: /usr/bin/python3.5
     virtualenv: '{{ app_dir }}/venv'
 ```
+
+Running Django
+--------------
+
+The next step is to run Django. Just to see if everything works
+I decided to test running the Django dev server. However, just
+invoking `manage.py runserver` is not really a good idea - the problem
+is that Ansible is supposed to be a declarative language, and so every
+command in the playbook should be idempotent.
+
+Idempotency means that performing an action multiple times will not
+affect the outcome, which is not true for `runserver` - if the server
+is already running when we attempt to start it, it will fail with an
+error because the port is already in use.
+
+Fortunately, we can use Debian's Upstart service to conditionally
+start applications, but that means we have to write an upstart conf
+for Django. On to templating!
+
+I added a `python\_bin: '{{ app\_dir }}/venv/bin/python'` variable
+which I used in this template:
+
+```
+description "Start Django app"
+start on runlevel [2345]
+stop on runlevel [06]
+respawn
+respawn limit 10 5
+exec {{ python_bin }} {{ app_dir }}/manage.py runserver 0.0.0.0:8080
+```
+
+Note that we have to start the server on `0.0.0.0` - this is actually
+different from `127.0.0.1` (Django's default) since the latter is
+actually a loopback interface and not the machine's own IP address.
+
+We then use Ansible's `template` module to create the upstart conf
+file:
+
+```yaml
+- name: Create upstart config for Django
+  template: src=templates/django.conf.j2 dest=/etc/init/django.conf
+```
+
+I'm a bit unsure about the best way to structure the templates
+directory - maybe it should mirror where the templated files should
+live on the guest machine's file system?
+
+Anyway, now that we have defined our `django` service we can start it
+like so:
+
+```yaml
+- name: Start Django
+  service: name=django state=restarted
+```
+
+Just to make sure that `upstart` picks up any config changes I restart
+the service every time. (Maybe it would be better to use `when` here?)
