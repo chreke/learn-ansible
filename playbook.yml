@@ -4,6 +4,7 @@
   become_user: root
   vars:
     app_dir: '/home/vagrant/src'
+    python_bin: '{{ app_dir }}/venv/bin/python'
   tasks:
   - name: Add deadsnakes PPA
     apt_repository: repo='ppa:fkrull/deadsnakes' state=present
@@ -18,3 +19,7 @@
       requirements: '{{ app_dir }}/requirements.txt'
       virtualenv_python: /usr/bin/python3.5
       virtualenv: '{{ app_dir }}/venv'
+  - name: Create upstart config for Django
+    template: src=templates/django.conf.j2 dest=/etc/init/django.conf
+  - name: Start Django
+    service: name=django state=restarted
