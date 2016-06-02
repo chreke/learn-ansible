@@ -229,4 +229,8 @@ We also need to add `psycopg2` as a dependency in `requirements.txt`:
 
     psycopg2==2.6.1
 
+Wait, did we just install `psycopg2` - again? Yes.
+
+![deal with it](Deal_with_it_dog_gif.gif "deal with it")
+
 http://docs.ansible.com/ansible/playbooks_best_practices.html
