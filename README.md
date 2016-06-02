@@ -12,11 +12,10 @@ Ansible should do the following things:
 
  * Configure the app so everything works together
 
- * Open up ports for local development.
+ * Provide a local "dev" setup and a "live" setup
 
- * Mount the application files on the local file system.
-
- * Provide separate "live" and "dev" plays
+ * The "live" setup should use separate servers for the application
+   and the database
 
 Setup
 -----
@@ -71,6 +70,19 @@ config.vm.network "forwarded_port", guest: 8080, host: 4000
 config.vm.synced_folder "src/", "/home/vagrant/src"
 ```
 
+Variables
+---------
+
+The next step is to add some variables containing information about
+our app:
+
+```yaml
+vars:
+  app_name: foo
+  app_dir: /home/vagrant/src
+```
+
+
 Install Django
 --------------
 
@@ -108,8 +120,14 @@ Fortunately, we can use Debian's Upstart service to conditionally
 start applications, but that means we have to write an upstart conf
 for Django. On to templating!
 
-I added a `python\_bin: '{{ app\_dir }}/venv/bin/python'` variable
-which I used in this template:
+First we should add a variable to the playbook containing the location
+of our Python executable:
+
+```yaml
+python_bin: '{{ app_dir }}/venv/bin/python'
+```
+
+Then we create a new template in `templates/django.conf.j2`:
 
 ```
 description "Start Django app"
