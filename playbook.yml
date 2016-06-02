@@ -2,8 +2,6 @@
 - hosts: default
   become: yes
   become_user: root
-  environment:
-    DATABASE_URL: '{{ db_url }}'
   vars:
     app_name: foo
     app_dir: /home/vagrant/src
@@ -11,7 +9,9 @@
     db_name: '{{ app_name }}'
     db_user: '{{ app_name }}'
     db_password: 'password'
-    db_url: 'postgres://{{ db_user }}:{{ db_password }}@localhost/{{ db_name }}'
+  environment:
+    DATABASE_URL: >-
+      postgres://{{ db_user }}:{{ db_password }}@localhost/{{ db_name }}
   tasks:
   - name: Add deadsnakes PPA
     apt_repository: repo='ppa:fkrull/deadsnakes' state=present
