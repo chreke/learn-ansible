@@ -53,8 +53,11 @@ This is what we have so far:
     apt_repository: repo='ppa:fkrull/deadsnakes' state=present
   - name: Update APT cache
     apt: update_cache=yes
-  - name: Ensure Python 3.5 is installed
-    apt: name=python3.5 state=present
+  - name: Install Python 3.5
+    apt: name='{{ item }}' state=present
+    with_items:
+      - python3.5
+      - python3.5-dev
 ```
 
 Set up port forwarding and synced folders
@@ -165,7 +168,8 @@ db_password: 'password'
 (Feel free to substitute `'password'` with something more secure. Or
 don't. #yolo)
 
-Then add these tasks to the playbook:
+Then add these tasks to the playbook - they should run *before* we
+install Python dependencies:
 
 ```yaml
 - name: Install PostgreSQL
@@ -220,5 +224,9 @@ DATABASES = {
     'default': dj_database_url.config(conn_max_age=600)
 }
 ```
+
+We also need to add `psycopg2` as a dependency in `requirements.txt`:
+
+    psycopg2==2.6.1
 
 http://docs.ansible.com/ansible/playbooks_best_practices.html
