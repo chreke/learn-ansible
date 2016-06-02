@@ -71,8 +71,11 @@ config.vm.synced_folder "src/", "/home/vagrant/src"
 Install Django
 --------------
 
-Add a `requirements.txt` with the line `Django==1.9`, then add the
-following;
+Add a `requirements.txt` with this line:
+
+    Django==1.9
+
+Then add the following lines to the playbook:
 
 ```yaml
 - name: Install virtualenv
@@ -140,3 +143,82 @@ like so:
 
 Just to make sure that `upstart` picks up any config changes I restart
 the service every time. (Maybe it would be better to use `when` here?)
+
+Set up Postgres
+---------------
+
+The next step is to set up Postgres. By default, Django sets up
+a SQLite database, but since I predict that my test app will become
+a massive viral success (if you are a venture capitalist willing to
+provide series A funding please get in touch) we need something more
+performant.
+
+Let's add the following variables:
+
+```yaml
+app_name: foo
+db_name: '{{ app_name }}'
+db_user: '{{ app_name }}'
+db_password: 'password'
+```
+
+(Feel free to substitute `'password'` with something more secure. Or
+don't. #yolo)
+
+Then add these tasks to the playbook:
+
+```yaml
+- name: Install PostgreSQL
+  apt: name='{{ item }}' state=installed
+  with_items:
+    - postgresql
+    - postgresql-contrib
+    - python-psycopg2
+- name: Ensure PostgreSQL is running
+  service: name=postgresql state=started
+- name: Ensure database is created
+  become_user: postgres
+  postgresql_db:
+    name: '{{ db_name }}'
+    encoding: UTF-8
+    lc_collate: en_US.UTF-8
+    lc_ctype: en_US.UTF-8
+    template: template0
+    state: present
+- name: Ensure user has access to the database
+  become_user: postgres
+  postgresql_user:
+    db: '{{ db_name }}'
+    name: '{{ db_user }}'
+    password: '{{ db_password }}'
+    priv: ALL
+    state: present
+    role_attr_flags: NOSUPERUSER,NOCREATEDB
+```
+
+To clarify, `psycopg2` is required for Ansible to talk to Postgres, so
+that's why we're installing it here.
+
+Connecting Django and Postgres
+------------------------------
+
+My idea is that the Django app will get its configuration from
+environment variables. This has the advantage of not requiring Ansible
+to create Django settings files, which makes the app more portable.
+
+To do this we will use the `dj-database-url` package. Add this line to
+`requirements.txt`:
+
+    dj-database-url==0.4
+
+In `settings.py` we can replace the default database config with:
+
+```python
+import dj_database_url
+
+DATABASES = {
+    'default': dj_database_url.config(conn_max_age=600)
+}
+```
+
+http://docs.ansible.com/ansible/playbooks_best_practices.html
