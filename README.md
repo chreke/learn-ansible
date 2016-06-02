@@ -140,7 +140,7 @@ exec {{ python_bin }} {{ app_dir }}/manage.py runserver 0.0.0.0:8080
 
 Note that we have to start the server on `0.0.0.0` - this is actually
 different from `127.0.0.1` (Django's default) since the latter is
-actually a loopback interface and not the machine's own IP address.
+a loopback interface and will not work with port forwarding.
 
 We then use Ansible's `template` module to create the upstart conf
 file:
@@ -247,8 +247,18 @@ We also need to add `psycopg2` as a dependency in `requirements.txt`:
 
     psycopg2==2.6.1
 
-Wait, did we just install `psycopg2` - again? Yes.
+Wait, did you just install `psycopg2` - again? Yes.
 
 ![deal with it](Deal_with_it_dog_gif.gif "deal with it")
+
+`dj-database-url` expects to find a variable named `DATABASE_URL` in
+the environment. To set it up we'll use the `environment` keyword
+- put this on the top level of the play:
+
+```yaml
+environment:
+  DATABASE_URL: >
+    'postgres://{{ db_user }}:{{ db_password }}@localhost/{{ db_name }}'
+```
 
 http://docs.ansible.com/ansible/playbooks_best_practices.html
