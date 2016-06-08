@@ -252,13 +252,17 @@ Wait, did you just install `psycopg2` - again? Yes.
 ![deal with it](Deal_with_it_dog_gif.gif "deal with it")
 
 `dj-database-url` expects to find a variable named `DATABASE_URL` in
-the environment. To set it up we'll use the `environment` keyword
-- put this on the top level of the play:
+the environment. To set it up we'll use the `environment` keyword. Put
+this on the top level of the play:
 
 ```yaml
 environment:
-  DATABASE_URL: >
-    'postgres://{{ db_user }}:{{ db_password }}@localhost/{{ db_name }}'
+  DATABASE_URL: >-
+    postgres://{{ db_user }}:{{ db_password }}@localhost/{{ db_name }}
 ```
+
+(The funny `>-` sigil lets us write a single-line string over multiple
+lines. This is almost the same as `>`, except the latter adds
+a trailing newline. The more you know!)
 
 http://docs.ansible.com/ansible/playbooks_best_practices.html
