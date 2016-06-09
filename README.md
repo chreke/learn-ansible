@@ -25,7 +25,30 @@ Install Ansible (>2.0) and Vagrant
 Ansible + Vagrant
 -----------------
 
-Copied `Vagrantfile` from here: http://docs.ansible.com/ansible/guide\_vagrant.html
+We'll start with a `Vagrantfile` copied from the [Ansible Vagrant
+docs](http://docs.ansible.com/ansible/guide_vagrant.html):
+
+```ruby
+# This guide is optimized for Vagrant 1.7 and above.
+# Although versions 1.6.x should behave very similarly, it is recommended
+# to upgrade instead of disabling the requirement below.
+Vagrant.require_version ">= 1.7.0"
+
+Vagrant.configure(2) do |config|
+
+  config.vm.box = "ubuntu/trusty64"
+
+  # Disable the new default behavior introduced in Vagrant 1.7, to
+  # ensure that all Vagrant machines will use the same SSH key pair.
+  # See https://github.com/mitchellh/vagrant/issues/5005
+  config.ssh.insert_key = false
+
+  config.vm.provision "ansible" do |ansible|
+    ansible.verbose = "v"
+    ansible.playbook = "playbook.yml"
+  end
+end
+```
 
 Touch `playbook.yml` in the same directory as the `Vagrantfile` and
 we're good to run `vagrant up`.
@@ -81,7 +104,6 @@ vars:
   app_name: foo
   app_dir: /home/vagrant/src
 ```
-
 
 Install Django
 --------------
@@ -177,7 +199,6 @@ performant.
 Let's add the following variables:
 
 ```yaml
-app_name: foo
 db_name: '{{ app_name }}'
 db_user: '{{ app_name }}'
 db_password: 'password'
@@ -247,7 +268,7 @@ We also need to add `psycopg2` as a dependency in `requirements.txt`:
 
     psycopg2==2.6.1
 
-Wait, did you just install `psycopg2` - again? Yes.
+Wait, did you just install `psycopg2`... again? Yes.
 
 ![deal with it](Deal_with_it_dog_gif.gif "deal with it")
 
@@ -264,5 +285,16 @@ environment:
 (The funny `>-` sigil lets us write a single-line string over multiple
 lines. This is almost the same as `>`, except the latter adds
 a trailing newline. The more you know!)
+
+Now we should be able to run Django's migrations. Add the following
+step to the playbook, just before starting Django:
+
+```yaml
+- name: Run migrations
+  django_manage:
+    command: migrate
+    app_path: '{{ app_dir }}'
+    virtualenv: '{{ app_dir }}/venv'
+```
 
 http://docs.ansible.com/ansible/playbooks_best_practices.html
