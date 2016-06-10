@@ -263,7 +263,7 @@ We also need to add `psycopg2` as a dependency in `requirements.txt`:
 
 Wait, did you just install `psycopg2`... again? Yes.
 
-![deal with it](Deal_with_it_dog_gif.gif "deal with it")
+![](dealwithit.gif "deal with it")
 
 `dj-database-url` expects to find a variable named `DATABASE_URL` in
 the environment. To set it up we'll use the `environment` keyword. Put
