@@ -3,4 +3,8 @@ start on runlevel [2345]
 stop on runlevel [06]
 respawn
 respawn limit 10 5
-exec {{ python_bin }} {{ app_dir }}/manage.py runserver 0.0.0.0:8080
+exec uwsgi \
+    --chdir {{ app_dir }} \
+    --socket :8001 \
+    --module {{ app_name }}.wsgi \
+    --home {{ app_dir }}/venv
