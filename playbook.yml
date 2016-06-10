@@ -4,7 +4,8 @@
   become_user: root
   vars:
     app_name: foo
-    app_dir: /home/vagrant/src
+    vagrant_dir: /home/vagrant
+    app_dir: '{{ vagrant_dir }}/src'
     python_bin: '{{ app_dir }}/venv/bin/python'
     db_name: '{{ app_name }}'
     db_user: '{{ app_name }}'
@@ -13,21 +14,21 @@
     DATABASE_URL: >-
       postgres://{{ db_user }}:{{ db_password }}@localhost/{{ db_name }}
   tasks:
-  - name: Add deadsnakes PPA
-    apt_repository: repo='ppa:fkrull/deadsnakes' state=present
-  - name: Update APT cache
-    apt: update_cache=yes
-  - name: Install Python 3.5
-    apt: name='{{ item }}' state=present
+  - name: Install Python 3.4
+    apt: name='{{ item }}' state=present update_cache=yes
     with_items:
-      - python3.5
-      - python3.5-dev
+      - python3.4
+      - python3.4-dev
+      - python3-pip
   - name: Install PostgreSQL
     apt: name='{{ item }}' state=installed
     with_items:
       - postgresql
       - postgresql-contrib
+      - libpq-dev
       - python-psycopg2
+  - name: Install Nginx
+    apt: name=nginx state=installed
   - name: Ensure PostgreSQL is running
     service: name=postgresql state=started
   - name: Ensure database is created
@@ -48,19 +49,37 @@
       priv: ALL
       state: present
       role_attr_flags: NOSUPERUSER,NOCREATEDB
+  - name: Install uWSGI
+    pip:
+      name: uwsgi
+      version: 2.0
+      executable: pip3
   - name: Install virtualenv
     apt: name=python-virtualenv state=present
   - name: Install Python dependencies
     pip:
       requirements: '{{ app_dir }}/requirements.txt'
-      virtualenv_python: /usr/bin/python3.5
+      virtualenv_python: /usr/bin/python3.4
       virtualenv: '{{ app_dir }}/venv'
-  - name: Create upstart config for Django
-    template: src=templates/django.conf.j2 dest=/etc/init/django.conf
+  - name: Create site config for Nginx
+    template:
+      src: templates/django-uwsgi.conf.j2
+      dest: /etc/nginx/sites-enabled/django-uwsgi.conf
+  - name: Create upstart config for uWSGI
+    template:
+      src: templates/django.conf.j2
+      dest: /etc/init/django.conf
   - name: Run migrations
     django_manage:
       command: migrate
       app_path: '{{ app_dir }}'
       virtualenv: '{{ app_dir }}/venv'
+  - name: Collect static files
+    django_manage:
+      command: collectstatic
+      app_path: '{{ app_dir }}'
+      virtualenv: '{{ app_dir }}/venv'
   - name: Start Django
     service: name=django state=restarted
+  - name: Start Nginx
+    service: name=nginx state=restarted
