@@ -56,14 +56,7 @@ we're good to run `vagrant up`.
 Install Python
 --------------
 
-I wanted to use Python 3.5, and already I found myself running into
-"interesting" problems - turns out 3.5 is not in the official `apt`
-repo yet, so we have to add a new PPA.
-
-This can be fixed by adding the "deadsnakes" PPA (someone on the
-Internet told me to).
-
-This is what we have so far:
+Let's ensure that Python is installed:
 
 ```yaml
 ---
@@ -71,16 +64,16 @@ This is what we have so far:
   become: yes
   become_user: root
   tasks:
-  - name: Add deadsnakes PPA
-    apt_repository: repo='ppa:fkrull/deadsnakes' state=present
-  - name: Update APT cache
-    apt: update_cache=yes
-  - name: Install Python 3.5
+  - name: Install Python 3.4
     apt: name='{{ item }}' state=present
     with_items:
-      - python3.5
-      - python3.5-dev
+      - python3.4
+      - python3.4-dev
+      - python3-pip
 ```
+
+For some reason the Python we got from APT refuses to install `pip`,
+so we'll install `python3-pip` as well.
 
 Set up port forwarding and synced folders
 -----------------------------------------
@@ -286,8 +279,10 @@ environment:
 lines. This is almost the same as `>`, except the latter adds
 a trailing newline. The more you know!)
 
-Now we should be able to run Django's migrations. Add the following
-step to the playbook, just before starting Django:
+Now we should be able to run Django's migrations. Lucky for us,
+Ansible comes with a module for running Django admin commands, called
+`django_manage`. Add the following step to the playbook, just before
+starting Django:
 
 ```yaml
 - name: Run migrations
@@ -296,5 +291,134 @@ step to the playbook, just before starting Django:
     app_path: '{{ app_dir }}'
     virtualenv: '{{ app_dir }}/venv'
 ```
+
+Using uWSGI + Nginx
+-------------------
+
+Let's use Nginx and uWSGI to serve our Django application. uWSGI will
+handle requests to the app and Nginx will serve static files.
+
+We'll start with installing Nginx:
+
+```yaml
+- name: Install Nginx
+  apt: name=nginx state=installed
+```
+
+Next, we'll install uWSGI - note that we don't involve our
+`virtualenv` here, since uWSGI doesn't need to know about our
+dependencies:
+
+```yaml
+- name: Install uWSGI
+  pip:
+    name: uwsgi
+    version: 2.0
+    executable: pip3
+```
+
+We also need to configure the two. We'll start by rewriting the
+`django.conf.j2` template to start uWSGI instead - change the `exec`
+line to:
+
+```
+exec uwsgi \
+    --chdir {{ app_dir }} \
+    --socket :8001 \
+    --module {{ app_name }}.wsgi \
+    --home {{ app_dir }}/venv
+```
+
+Next, we need to create a `uwsgi_params` file which Nginx will use.
+Put this in a `src/uwsgi_param` file:
+
+```
+uwsgi_param  QUERY_STRING       $query_string;
+uwsgi_param  REQUEST_METHOD     $request_method;
+uwsgi_param  CONTENT_TYPE       $content_type;
+uwsgi_param  CONTENT_LENGTH     $content_length;
+
+uwsgi_param  REQUEST_URI        $request_uri;
+uwsgi_param  PATH_INFO          $document_uri;
+uwsgi_param  DOCUMENT_ROOT      $document_root;
+uwsgi_param  SERVER_PROTOCOL    $server_protocol;
+uwsgi_param  REQUEST_SCHEME     $scheme;
+uwsgi_param  HTTPS              $https if_not_empty;
+
+uwsgi_param  REMOTE_ADDR        $remote_addr;
+uwsgi_param  REMOTE_PORT        $remote_port;
+uwsgi_param  SERVER_PORT        $server_port;
+uwsgi_param  SERVER_NAME        $server_name;
+```
+
+Finally, we'll create a site config for Nginx in
+`templates/nginx.conf.j2`:
+
+```nginx
+upstream django {
+    server 127.0.0.1:8001;
+}
+
+server {
+    listen      8080;
+    server_name 0.0.0.0;
+    charset     utf-8;
+
+    client_max_body_size 75M;
+
+    location /media  {
+        alias {{ app_dir }}/media;
+    }
+
+    location /static {
+        alias {{ app_dir }}/static;
+    }
+
+    location / {
+        uwsgi_pass  django;
+        include     {{ app_dir }}/uwsgi_params;
+    }
+}
+```
+
+We'll use the `template` module to put this in
+`/etc/nginx/sites-enabled/django-uwsgi.conf`:
+
+```yaml
+- name: Create site config for Nginx
+  template:
+    src: templates/django-uwsgi.conf.j2
+    dest: /etc/nginx/sites-enabled/django-uwsgi.conf
+```
+
+To get Nginx to serve static files we need Django to collect these
+files into a directory. Add this line to `settings.py`:
+
+```python
+STATIC_ROOT = os.path.join(BASE_DIR, "static/")
+MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
+```
+
+(`MEDIA_ROOT` is for user-uploaded files)
+
+Before Django is started, we make sure that static files are collected:
+
+```yaml
+- name: Collect static files
+  django_manage:
+    command: collectstatic
+    app_path: '{{ app_dir }}'
+    virtualenv: '{{ app_dir }}/venv'
+```
+
+Finally, we make sure that Nginx is started:
+
+```yaml
+- name: Start Nginx
+  service: name=nginx state=restarted
+```
+
+Further reading
+---------------
 
 http://docs.ansible.com/ansible/playbooks_best_practices.html
