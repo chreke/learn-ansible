@@ -418,6 +418,16 @@ Finally, we make sure that Nginx is started:
   service: name=nginx state=restarted
 ```
 
+If you run `vagrant provision` and go to `localhost:4000` after it's
+finished you should see... the exact same thing as before! Which
+doesn't sound very exciting, but it shows that our new setup is
+working, which is good.
+
+To double-check that static assets are being served correctly, go to
+`/admin` - if Nginx or the static assets are not set up properly
+you'll see an unstyled admin login in all its Times New Roman-ly
+glory.
+
 Further reading
 ---------------
 
