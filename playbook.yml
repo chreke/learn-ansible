@@ -10,9 +10,9 @@
     db_name: '{{ app_name }}'
     db_user: '{{ app_name }}'
     db_password: 'password'
-  environment:
-    DATABASE_URL: >-
-      postgres://{{ db_user }}:{{ db_password }}@localhost/{{ db_name }}
+    django_env:
+      DATABASE_URL: >-
+        postgres://{{ db_user }}:{{ db_password }}@localhost/{{ db_name }}
   tasks:
   - name: Install Python 3.4
     apt: name='{{ item }}' state=present update_cache=yes
@@ -75,6 +75,7 @@
       app_path: '{{ app_dir }}'
       virtualenv: '{{ app_dir }}/venv'
   - name: Collect static files
+    environment: '{{ django_env }}'
     django_manage:
       command: collectstatic
       app_path: '{{ app_dir }}'

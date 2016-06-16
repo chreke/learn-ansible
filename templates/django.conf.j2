@@ -3,6 +3,11 @@ start on runlevel [2345]
 stop on runlevel [06]
 respawn
 respawn limit 10 5
+
+{% for key, value in django_env.items() %}
+env {{ key }}={{ value }}
+{% endfor %}
+
 exec uwsgi \
     --chdir {{ app_dir }} \
     --socket :8001 \
