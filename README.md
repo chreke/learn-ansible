@@ -165,10 +165,6 @@ file:
   template: src=templates/django.conf.j2 dest=/etc/init/django.conf
 ```
 
-I'm a bit unsure about the best way to structure the templates
-directory - maybe it should mirror where the templated files should
-live on the guest machine's file system?
-
 Anyway, now that we have defined our `django` service we can start it
 like so:
 
@@ -233,12 +229,13 @@ install Python dependencies:
 ```
 
 To clarify, `psycopg2` is required for Ansible to talk to Postgres, so
-that's why we're installing it here.
+that's why we're installing it here and not along with the other
+Python dependencies.
 
 Connecting Django and Postgres
 ------------------------------
 
-My idea is that the Django app will get its configuration from
+The idea is that the Django app will get its configuration from
 environment variables. This has the advantage of not requiring Ansible
 to create Django settings files, which makes the app more portable.
 
@@ -266,11 +263,11 @@ Wait, did you just install `psycopg2`... again? Yes.
 ![](dealwithit.gif "deal with it")
 
 `dj-database-url` expects to find a variable named `DATABASE_URL` in
-the environment. To set it up we'll use the `environment` keyword. Put
-this on the top level of the play:
+the environment. Let's start by storing all our environment variables
+in an Ansible variable which we'll call `django_env`:
 
 ```yaml
-environment:
+django_env:
   DATABASE_URL: >-
     postgres://{{ db_user }}:{{ db_password }}@localhost/{{ db_name }}
 ```
@@ -279,18 +276,42 @@ environment:
 lines. This is almost the same as `>`, except the latter adds
 a trailing newline. The more you know!)
 
-Now we should be able to run Django's migrations. Lucky for us,
+Now we should be able to run Django's migrations. Fortunately for us,
 Ansible comes with a module for running Django admin commands, called
-`django_manage`. Add the following step to the playbook, just before
+`django_manage`. Add the following task to the playbook, just before
 starting Django:
 
 ```yaml
 - name: Run migrations
+  environment: '{{ django_env }}'
   django_manage:
     command: migrate
     app_path: '{{ app_dir }}'
     virtualenv: '{{ app_dir }}/venv'
 ```
+
+The `environment` keyword runs a task with a certain set of
+environment variables, which can either be listed directly or sourced
+from a variable. In this case we get them from the `django_env`
+variable which we defined earlier.
+
+There is a small problem, however - Upstart services do not
+automatically inherit variables from the environment they were started
+in, so trying to use `environment` to configure our `django` service
+won't work. Instead we'll put the environment variables in our
+`django.conf.j2` template file. Add these lines before the `exec`
+command:
+
+```yaml
+{% for key, value in django_env.items() %}
+env {{ key }}={{ value }}
+{% endfor %}
+```
+
+Try running `vagrant provision` again - when it's finished, try to
+access the [admin panel](localhost:4000/admin) - if the database URL
+is set up correctly it should warn you that you used the wrong
+credentials.
 
 Using uWSGI + Nginx
 -------------------
